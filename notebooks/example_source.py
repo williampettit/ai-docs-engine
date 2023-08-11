@@ -7,6 +7,7 @@ def example_func_0():
   print("Hello")
 
 def example_func_1(arg0, arg1):
+  # Pre-existing comment, but not docstring
   print(arg0, arg1)
 
 def example_func_2():
@@ -16,8 +17,9 @@ def example_func_2():
 class ExampleClass:
   def __init__(self, value) -> None:
     self.value = value
-  
+
   def print(self):
+    """Pre-existing docstring"""
     print(self.value)
 
   def print_reversed(self):
