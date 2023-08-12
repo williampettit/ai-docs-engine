@@ -1,7 +1,7 @@
 from libcst.metadata import PositionProvider
 import libcst
 
-from .utilities import AIDocsEngineTooManyTokensError, col
+from .utilities import AIDocsEngineTooManyTokensError
 
 
 StringQuoteLiteralStyles = ['"', "'", '"""', "'''"]

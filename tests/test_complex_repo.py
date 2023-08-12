@@ -20,7 +20,7 @@ def test_complex_repo():
 
   # For this example, I will use a sufficiently complex repo, `tinygrad`
   repo_url = "https://github.com/tinygrad/tinygrad"
-  dst_dir = "tests/test_data/repos/tinygrad"
+  dst_dir = "tests/data/repos/tinygrad"
 
   # Download repo
   download_repo(
@@ -31,17 +31,14 @@ def test_complex_repo():
   # Define config
   config = ai_docs_engine.Config(
     include_rules=[
-      "tests/test_data/repos/tinygrad/tinygrad/**/*.py",
-
-      # TEMP: Test specific path so that the test runs faster
-      # "tests/test_data/repos/tinygrad/tinygrad/test_add.py",
+      "tests/data/repos/tinygrad/tinygrad/**/*.py",
     ],
     exclude_rules=[
       # Ignore files from previous test runs
-      "tests/test_data/repos/tinygrad/tinygrad/**/modified_*.py",
+      "tests/data/repos/tinygrad/tinygrad/**/modified_*.py",
       
       # Ignore `tinygrad` tests
-      "tests/test_data/repos/tinygrad/tinygrad/test_*.py",
+      "tests/data/repos/tinygrad/tinygrad/test_*.py",
     ],
     modify_files_inplace=False,
     skip_init_functions=True,

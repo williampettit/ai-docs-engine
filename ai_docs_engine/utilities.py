@@ -1,6 +1,12 @@
 import logging
-from termcolor import colored as col
 import time
+
+try:
+  from termcolor import colored as col
+except ImportError:
+  logging.warning("termcolor is not installed, so colored text will not be available.")
+
+  col = lambda text, *_: text
 
 
 col # This is here to prevent an unused import warning
@@ -24,7 +30,11 @@ class AIDocsEngineTooManyTokensError(AIDocsEngineError):
     )
 
 
-def time_func(func):
+def time_func(func: callable):
+  """
+  Timer decorator
+  """
+
   def wrapper(*args, **kwargs):
     start_time = time.perf_counter()
     result = func(*args, **kwargs)
