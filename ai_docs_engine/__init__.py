@@ -1,12 +1,17 @@
+import logging
+logging.getLogger("openai").setLevel("ERROR")
+logging.getLogger("urllib3").setLevel("ERROR")
+
 import dotenv
 dotenv.load_dotenv()
 
 from glob import glob
+from libcst.metadata import MetadataWrapper
 from pydantic import BaseModel
 from typing import List
 import libcst
-from libcst.metadata import MetadataWrapper
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from .docstring_transformer import DocstringTransformer
 from .openai_calls import generate_docstring_with_openai
@@ -19,6 +24,10 @@ class Config(BaseModel):
   modify_files_inplace: bool
   docstring_quote_style: str = '"""'
   skip_init_functions: bool
+  skip_definition_if_too_many_tokens: bool
+
+  # ... 
+  _max_workers: int = 10
 
 
 @time_func
@@ -55,51 +64,69 @@ def gather_source_file_paths(
   return sorted(list(paths))
 
 
+def generate_docstrings_for_file(
+  config: Config,
+  source_file_path: str,
+):
+  # Load source code
+  with open(source_file_path) as file:
+    source = file.read()
+
+  # Parse source code and wrap module in metadata wrapper
+  wrapper = MetadataWrapper(libcst.parse_module(source))
+
+  # Extract module from wrapper
+  module = wrapper.module
+
+  # Initialize docstring transformer and supply OpenAI wrapper function
+  transformer = DocstringTransformer(
+    module=module,
+    docstring_quote_style=config.docstring_quote_style,
+    generate_docstring_func=generate_docstring_with_openai,
+    skip_init_functions=config.skip_init_functions,
+    skip_definition_if_too_many_tokens=config.skip_definition_if_too_many_tokens,
+  )
+
+  # Resolve metadata
+  transformer.resolve(wrapper)
+
+  # Apply docstring transformer to source code
+  modified_module = wrapper.visit(transformer)
+
+  # Write transformed code to file
+  if config.modify_files_inplace:
+    with open(source_file_path, "w") as file:
+      file.write(modified_module.code)
+  else:
+    source_file_dir = os.path.dirname(source_file_path)
+    
+    modified_source_file_path = os.path.join(source_file_dir, f"modified_{os.path.basename(source_file_path)}")
+    
+    # if os.path.exists(modified_source_file_path):
+    #   raise Exception(f"File already exists: {modified_source_file_path}")
+
+    with open(modified_source_file_path, "w") as file:
+      file.write(modified_module.code)
+
+
 @time_func
-def generate_docstrings(config: Config):
+def generate_docstrings(
+  config: Config
+) -> None:
   # Gather all source file paths to be processed
   source_file_paths = gather_source_file_paths(
     include_rules=config.include_rules,
     exclude_rules=config.exclude_rules,
   )
 
+  # Count total source files
+  total_source_files = len(source_file_paths)
+
   # Process each source file
-  for source_file_path in source_file_paths:
-    # Load source code
-    with open(source_file_path) as file:
-      source = file.read()
+  with ThreadPoolExecutor(max_workers=config._max_workers) as executor:
+    for (index, source_file_path) in enumerate(source_file_paths):
+      # Print progress
+      logging.info(f"[{index + 1}/{total_source_files}] Processing source file `{source_file_path}`")
 
-    # Parse source code and wrap module in metadata wrapper
-    wrapper = MetadataWrapper(libcst.parse_module(source))
-
-    # Extract module from wrapper
-    module = wrapper.module
-
-    # Initialize docstring transformer and supply OpenAI wrapper function
-    transformer = DocstringTransformer(
-      module=module,
-      docstring_quote_style=config.docstring_quote_style,
-      generate_docstring_func=generate_docstring_with_openai,
-      skip_init_functions=config.skip_init_functions,
-    )
-
-    # Resolve metadata
-    transformer.resolve(wrapper)
-
-    # Apply docstring transformer to source code
-    modified_module = wrapper.visit(transformer)
-
-    # Write transformed code to file
-    if config.modify_files_inplace:
-      with open(source_file_path, "w") as file:
-        file.write(modified_module.code)
-    else:
-      source_file_dir = os.path.dirname(source_file_path)
-      
-      modified_source_file_path = os.path.join(source_file_dir, f"modified_{os.path.basename(source_file_path)}")
-
-      if os.path.exists(modified_source_file_path):
-        raise Exception(f"File already exists: {modified_source_file_path}")
-
-      with open(modified_source_file_path, "w") as file:
-        file.write(modified_module.code)
+      # Generate docstrings for file
+      executor.submit(generate_docstrings_for_file, config, source_file_path)

@@ -1,6 +1,5 @@
 # ai-docs-engine
-
-`ai-docs-engine` can automatically generate and insert [docstring](https://en.wikipedia.org/wiki/Docstring) comments for entire codebases using AI.
+`ai-docs-engine` automatically generates and inserts [docstring](https://en.wikipedia.org/wiki/Docstring) comments for entire codebases using AI.
 
 
 ## Features
@@ -8,6 +7,11 @@
 - 
 
 
-## License
+## Current Language Support
+- Python
+- 
 
+
+## License
 Licensed under the [MIT license](https://github.com/williampettit/ai-docs-engine/blob/main/LICENSE.md).
+

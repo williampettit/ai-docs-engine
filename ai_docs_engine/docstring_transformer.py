@@ -1,9 +1,7 @@
-from typing import Optional
-import libcst
-from libcst._nodes.statement import FunctionDef
 from libcst.metadata import PositionProvider
+import libcst
 
-from .utilities import col
+from .utilities import AIDocsEngineTooManyTokensError, col
 
 
 StringQuoteLiteralStyles = ['"', "'", '"""', "'''"]
@@ -77,12 +75,14 @@ class DocstringTransformer(libcst.CSTTransformer):
     module: libcst.Module,
     generate_docstring_func: callable,
     skip_init_functions: bool,
+    skip_definition_if_too_many_tokens: bool,
     docstring_quote_style: str = '"""',
   ) -> None:
     assert isinstance(module, libcst.Module), "Expected module to be a `libcst.Module`"
     assert docstring_quote_style in StringQuoteLiteralStyles, "Expected docstring_quote_style to be a `StringQuoteLiteralStyles`"
     assert callable(generate_docstring_func), "Expected generate_docstring_func to be a callable"
     assert isinstance(skip_init_functions, bool), "Expected skip_init_functions to be a bool"
+    assert isinstance(skip_definition_if_too_many_tokens, bool), "Expected skip_definition_if_too_many_tokens to be a bool"
 
     # TEMP
     self.skipped_functions = []
@@ -91,25 +91,38 @@ class DocstringTransformer(libcst.CSTTransformer):
     self._docstring_quote_style = docstring_quote_style
     self._generate_docstring_func = generate_docstring_func
     self._skip_init_functions = skip_init_functions
+    self._skip_definition_if_too_many_tokens = skip_definition_if_too_many_tokens
 
+
+  def leave_FunctionOrClassDef(
+    self,
+    original_node: libcst.FunctionDef | libcst.ClassDef,
+    updated_node: libcst.FunctionDef | libcst.ClassDef,
+  ) -> libcst.FunctionDef | libcst.ClassDef:
+    # Skip if function or class already has docstring
+    if check_if_node_has_docstring(updated_node):
+      return updated_node
+
+    # Generate docstring value
+    try:
+      docstring_value = self.generate_docstring(updated_node)
+    except AIDocsEngineTooManyTokensError:
+      if self._skip_definition_if_too_many_tokens:
+        print(f"Skipping definition due to too many tokens: `{updated_node.name.value}`")
+        return updated_node
+
+    # Insert docstring as first statement in function or class node
+    updated_node = self.insert_docstring(original_node=original_node, updated_node=updated_node, docstring_value=docstring_value)
+    
+    # Return updated node
+    return updated_node
 
   def leave_ClassDef(
     self,
     original_node: libcst.ClassDef,
     updated_node: libcst.ClassDef,
   ) -> libcst.ClassDef:
-    # Skip if class already has docstring
-    if check_if_node_has_docstring(updated_node):
-      return updated_node
-    
-    # Generate docstring value
-    docstring_value = self.generate_docstring(updated_node)
-
-    # Insert docstring as first statement in class node
-    updated_node = self.insert_docstring(original_node=original_node, updated_node=updated_node, docstring_value=docstring_value)
-    
-    # Return updated node
-    return updated_node
+    return self.leave_FunctionOrClassDef(original_node, updated_node)
 
 
   def leave_FunctionDef(
@@ -121,19 +134,7 @@ class DocstringTransformer(libcst.CSTTransformer):
     if self._skip_init_functions and updated_node.name.value == "__init__":
       return updated_node
 
-    # Skip if function already has docstring
-    if check_if_node_has_docstring(updated_node):
-      self.skipped_functions.append(updated_node.name.value)
-      return updated_node
-    
-    # Generate docstring value
-    docstring_value = self.generate_docstring(updated_node)
-
-    # Insert docstring as first statement in function node
-    updated_node = self.insert_docstring(original_node=original_node, updated_node=updated_node, docstring_value=docstring_value)
-    
-    # Return updated node
-    return updated_node
+    return self.leave_FunctionOrClassDef(original_node, updated_node)
 
 
   def extract_node_source_code(
@@ -153,8 +154,6 @@ class DocstringTransformer(libcst.CSTTransformer):
   ) -> str:
       assert isinstance(node, (libcst.FunctionDef | libcst.ClassDef)), "Expected node to be a function or a class definition"
 
-      print(f"Generating docstring value for: `{col(node.name.value, 'blue')}`")
-      
       # Extract node source code
       node_source_code = self.extract_node_source_code(node)
 
@@ -170,13 +169,14 @@ class DocstringTransformer(libcst.CSTTransformer):
         raise Exception(f"Unexpected node type: {node_type}")
       
       # Generate docstring (i.e. via OpenAI API wrapper function)
-      docstring_value = self._generate_docstring_func(node_source_code, node_type)
+      try:
+        docstring_value = self._generate_docstring_func(node_source_code, node_type)
+      except AIDocsEngineTooManyTokensError as exception:
+        exception.add_note(f"Failed to generate docstring for: `{node.name.value}`")
+        raise exception
 
       # Postprocess generated docstring
       docstring_value = postprocess_docstring(docstring_value)
-
-      # Print docstring
-      print(f"Generated docstring:", col(docstring_value, "green"))
 
       return docstring_value
 

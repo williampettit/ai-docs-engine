@@ -12,10 +12,11 @@ def test_simple():
   # Define config
   config = ai_docs_engine.Config(
     include_rules=["tests/data/**.py"],
-    exclude_rules=[],
+    exclude_rules=["tests/data/modified_**.py"],
     modify_files_inplace=False,
     skip_init_functions=True,
     docstring_quote_style='"""',
+    skip_definition_if_too_many_tokens=True,
   )
 
   # Generate docstrings
