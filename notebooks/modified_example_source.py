@@ -3,28 +3,33 @@
 ## It is used to test the parser.
 ##
 
-def example_func_0():
-  """Placeholder docstring."""
+
+async def example_func_0():
+  """Prints "Hello"."""
   print("Hello")
 
+
 def example_func_1(arg0, arg1):
-  """Placeholder docstring."""
-  # Pre-existing comment, but not docstring
+  """Prints the values of `arg0` and `arg1` to the console."""
+  # Pre-existing comment, which should not be considered as a docstring
   print(arg0, arg1)
 
+
 def example_func_2():
-  """Pre-existing docstring"""
+  """Pre-existing docstring, which should never be overwritten."""
   return 42
 
-class ExampleClass:
+
+class Calculator:
   def __init__(self, value) -> None:
-    """Placeholder docstring."""
+    """Assigns the given value to the "value" attribute of the object."""
     self.value = value
+  
+  def add(self, value):
+    """Increments the value attribute of an object by a given value."""
+    self.value += value
 
-  def print(self):
-    """Pre-existing docstring"""
-    print(self.value)
-
-  def print_reversed(self):
-    """Placeholder docstring."""
-    print(reversed(self.value))
+  def subtract(self, value):
+    """Subtracts the given value from the attribute value of the object."""
+    self.value -= value
+  

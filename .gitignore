@@ -2,8 +2,10 @@
 ## Project rules
 ##
 
-# Data directory
+# Data directories
 data/
+tests/data/repos/
+notebooks/cache/
 
 ##
 ## Below is standard Python .gitignore @ https://github.com/github/gitignore

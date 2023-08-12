@@ -3,24 +3,28 @@
 ## It is used to test the parser.
 ##
 
-def example_func_0():
+
+async def example_func_0():
   print("Hello")
 
+
 def example_func_1(arg0, arg1):
-  # Pre-existing comment, but not docstring
+  # Pre-existing comment, which should not be considered as a docstring
   print(arg0, arg1)
 
+
 def example_func_2():
-  """Pre-existing docstring"""
+  """Pre-existing docstring, which should never be overwritten."""
   return 42
 
-class ExampleClass:
+
+class Calculator:
   def __init__(self, value) -> None:
     self.value = value
+  
+  def add(self, value):
+    self.value += value
 
-  def print(self):
-    """Pre-existing docstring"""
-    print(self.value)
-
-  def print_reversed(self):
-    print(reversed(self.value))
+  def subtract(self, value):
+    self.value -= value
+  
