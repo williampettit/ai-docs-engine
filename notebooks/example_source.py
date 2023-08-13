@@ -4,6 +4,14 @@
 ##
 
 
+async def download_repo(
+  repo_url: str,
+  dst_dir: str,
+  print_progress: bool = True,
+) -> None:
+  await download(repo_url, dst_dir, print_progress=print_progress)
+
+
 async def example_func_0():
   print("Hello")
 
