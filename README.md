@@ -7,12 +7,12 @@
 - LLM agnostic; bring your own model by simply implementing and passing a callable with the required signature. OpenAI API is used by default. 
 
 ## Limitations, Recommendations
-- Docstrings may lack context and therefore be inaccurate **[0]**. 
+- Docstrings may lack context and therefore be inaccurate [[0]](#planned). 
 - I believe this tool will work best to "fill in the gaps" for a codebase which currently lacks docstrings. 
 - I do not suggest using this tool in a professional/production environment. 
 
-## Planned
-- [ ] **[0]** I am looking into using more OpenAI [function calls](https://platform.openai.com/docs/guides/gpt/function-calling) to enable stronger reasoning by allowing the LLM to request definitions of code referenced in target function/class. 
+## Planned Features, Notes
+- [ ] [[0]](#limitations-recommendations) I am looking into using more OpenAI [function calls](https://platform.openai.com/docs/guides/gpt/function-calling) to enable stronger reasoning by allowing the LLM to request definitions of code referenced in target function/class. 
 - [ ] Improve concurrency support and handle OpenAI rate limits [properly](https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py). 
 
 ## Supported Languages
