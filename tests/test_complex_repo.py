@@ -2,22 +2,19 @@ import logging
 import subprocess
 
 import ai_docs_engine
+import ai_docs_engine.openai_wrapper
 
 
 def download_repo(repo_url: str, dst_dir: str):
   assert isinstance(repo_url, str), "Expected repo_url to be a string"
   assert isinstance(dst_dir, str), "Expected dst_dir to be a string"
 
-  logging.info("Downloading repo")
-  
   subprocess.run(["git", "clone", repo_url, dst_dir])
 
   logging.info("Downloaded repo")
 
 
 def test_complex_repo():
-  logging.info("Running test_complex_repo")
-
   # For this example, I will use a sufficiently complex repo, `tinygrad`
   repo_url = "https://github.com/tinygrad/tinygrad"
   dst_dir = "tests/data/repos/tinygrad"
@@ -29,7 +26,7 @@ def test_complex_repo():
   )
 
   # Define config
-  config = ai_docs_engine.Config(
+  config = ai_docs_engine.AIDocsEngineConfig(
     include_rules=[
       "tests/data/repos/tinygrad/tinygrad/**/*.py",
     ],
@@ -40,10 +37,11 @@ def test_complex_repo():
       # Ignore `tinygrad` tests
       "tests/data/repos/tinygrad/tinygrad/test_*.py",
     ],
-    modify_files_inplace=False,
-    skip_init_functions=True,
-    docstring_quote_style='"""',
-    skip_definition_if_too_many_tokens=True,
+    inplace=False,
+    skip_init_methods=True,
+    quote_style='"""',
+    skip_if_too_many_tokens=True,
+    generate_docstring_func=ai_docs_engine.openai_wrapper.generate_docstring,
   )
 
   # Generate docstrings
