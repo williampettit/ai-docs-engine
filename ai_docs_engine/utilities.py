@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+from typing import Any
 import logging
 import time
 
@@ -5,44 +7,41 @@ try:
   from termcolor import colored as col
 except ImportError:
   logging.warning("termcolor is not installed, so colored text will not be available.")
-
   col = lambda text, *_: text
+finally:
+  col # This is here to prevent an unused import warning
 
 
-col # This is here to prevent an unused import warning
+class ConstBaseModel(BaseModel):
+  def __setattr__(self, name, value):
+    if name in self.__dict__:
+      raise ValueError(f"Field '{name}' is const and cannot be modified.")
+    super().__setattr__(name, value)
 
 
-class AIDocsEngineError(Exception):
-  """
-  This is the base class for any Exception that is intentionally raised
-  from within the project, that way they can all be caught together.
-  """
-  pass
+def time_func(func):
+  """Basic timer decorator"""
 
-
-class AIDocsEngineTooManyTokensError(AIDocsEngineError):
-  def __init__(
-    self,
-    num_tokens: int,
-  ) -> None:
-    super().__init__(
-      f"There is no OpenAI API model that can handle this many tokens ({num_tokens}), and I have not yet implemented the logic to pre-process the input to fit within the OpenAI API limits."
-    )
-
-
-def time_func(func: callable):
-  """
-  Timer decorator
-  """
-
-  def wrapper(*args, **kwargs):
+  def wrapper(*args, **kwargs) -> Any:
     start_time = time.perf_counter()
-    result = func(*args, **kwargs)
-    end_time = time.perf_counter()
-    time_taken = end_time - start_time
-    
-    logging.info(f"Time taken to execute {func.__name__}: {time_taken:.1f} seconds")
+    func_return_value = func(*args, **kwargs)
+    time_taken = time.perf_counter() - start_time
 
-    return result
+    func_name = col(f"{func.__name__}", "magenta")
+    time_taken = col(f"{time_taken:.2f}", "green")
+    logging.info(f"Time taken to execute {func_name}: {time_taken} seconds")
+
+    return func_return_value
 
   return wrapper
+
+
+def capitalize_first_letter(string: str) -> str:
+  assert isinstance(string, str), "Expected string to be a string"
+
+  # Trim leading and trailing whitespace
+  string = string.strip()
+  assert len(string) > 0, "Expected string to be non-empty"
+
+  # Capitalize first letter
+  return string[0].upper() + string[1:]

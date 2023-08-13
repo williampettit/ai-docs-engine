@@ -1,56 +1,61 @@
+import logging
 from libcst.metadata import PositionProvider
+from typing_extensions import override
 import libcst
 
-from .utilities import AIDocsEngineTooManyTokensError
-
-
-StringQuoteLiteralStyles = ['"', "'", '"""', "'''"]
+from .docstring_formatter import ClassDocstringData, FunctionDocstringData, build_numpy_docstring
+from .utilities import capitalize_first_letter, time_func
+from .config import AIDocsEngineConfig
+from .errors import AIDocsEngineError
 
 
 def preprocess_func_or_class_def(definition: str) -> str:
   assert isinstance(definition, str), "Expected definition to be a string"
+  
+  # TODO: try to further minimize tokens passed to OpenAI API
 
-  # TODO: try to minimize tokens passed to OpenAI API
+  # Remove empty lines
+  definition = "\n".join([line for line in definition.splitlines() if line.strip()])
+
+  # Trim leading and trailing whitespace
   definition = definition.strip()
 
   return definition
 
 
-def capitalize_first_letter(string: str) -> str:
-  assert isinstance(string, str), "Expected string to be a string"
+def postprocess_docstring(
+  docstring_data: FunctionDocstringData | ClassDocstringData,
+) -> FunctionDocstringData | ClassDocstringData:
+  assert isinstance(docstring_data, (FunctionDocstringData | ClassDocstringData)), "Expected docstring_data to be a function or a class docstring data object"
 
-  string = string.strip()
-
-  assert len(string) > 0, "Expected string to be non-empty"
-
-  return string[0].upper() + string[1:]
-
-
-def postprocess_docstring(docstring: str) -> str:
-  assert isinstance(docstring, str), "Expected docstring to be a string"
-  
   PREFIXES_TO_REMOVE = [
     "This function",
     "This method",
     "This class",
   ]
 
-  # Remove leading prefixes from docstring
-  for prefix in PREFIXES_TO_REMOVE:
-    if docstring.startswith(prefix):
-      docstring = docstring.removeprefix(prefix)
-      break
+  # Get docstring description
+  docstring_desc = docstring_data.description
 
+  # Remove leading prefixes from description
+  for prefix in PREFIXES_TO_REMOVE:
+    if docstring_desc.startswith(prefix):
+      docstring_desc = docstring_desc.removeprefix(prefix)
+      break
+  
   # Remove leading and trailing whitespace
-  docstring = docstring.strip()
+  docstring_desc = docstring_desc.strip()
 
   # Capitalize first letter
-  docstring = capitalize_first_letter(docstring)
+  docstring_desc = capitalize_first_letter(docstring_desc)
 
   # TEMP
-  docstring = f"AI: {docstring}"
+  docstring_desc = f"AI: {docstring_desc}"
 
-  return docstring
+  # Update docstring description with the preprocessed one
+  docstring_data.description = docstring_desc
+
+  return docstring_data
 
 
 def check_if_node_has_docstring(
@@ -58,6 +63,7 @@ def check_if_node_has_docstring(
 ) -> bool:
   assert isinstance(node, (libcst.FunctionDef | libcst.ClassDef)), "Expected node to be a function or a class definition"
 
+  # TODO: make this more readable / check if this is the best way to check for docstrings
   first_stmt_line = node.body.body and isinstance(node.body.body[0], libcst.SimpleStatementLine)
   has_expr = first_stmt_line and node.body.body[0].body and isinstance(node.body.body[0].body[0], libcst.Expr)
   has_docstr = has_expr and isinstance(node.body.body[0].body[0].value, libcst.SimpleString)
@@ -73,68 +79,15 @@ class DocstringTransformer(libcst.CSTTransformer):
   def __init__(
     self,
     module: libcst.Module,
-    generate_docstring_func: callable,
-    skip_init_functions: bool,
-    skip_definition_if_too_many_tokens: bool,
-    docstring_quote_style: str = '"""',
+    config: AIDocsEngineConfig,
   ) -> None:
     assert isinstance(module, libcst.Module), "Expected module to be a `libcst.Module`"
-    assert docstring_quote_style in StringQuoteLiteralStyles, "Expected docstring_quote_style to be a `StringQuoteLiteralStyles`"
-    assert callable(generate_docstring_func), "Expected generate_docstring_func to be a callable"
-    assert isinstance(skip_init_functions, bool), "Expected skip_init_functions to be a bool"
-    assert isinstance(skip_definition_if_too_many_tokens, bool), "Expected skip_definition_if_too_many_tokens to be a bool"
-
-    # TEMP
-    self.skipped_functions = []
+    assert isinstance(config, AIDocsEngineConfig), "Expected config to be an `AIDocsEngineConfig`"
 
     self._module = module
-    self._docstring_quote_style = docstring_quote_style
-    self._generate_docstring_func = generate_docstring_func
-    self._skip_init_functions = skip_init_functions
-    self._skip_definition_if_too_many_tokens = skip_definition_if_too_many_tokens
+    self._config = config
 
-
-  def leave_FunctionOrClassDef(
-    self,
-    original_node: libcst.FunctionDef | libcst.ClassDef,
-    updated_node: libcst.FunctionDef | libcst.ClassDef,
-  ) -> libcst.FunctionDef | libcst.ClassDef:
-    # Skip if function or class already has docstring
-    if check_if_node_has_docstring(updated_node):
-      return updated_node
-
-    # Generate docstring value
-    try:
-      docstring_value = self.generate_docstring(updated_node)
-    except AIDocsEngineTooManyTokensError:
-      if self._skip_definition_if_too_many_tokens:
-        print(f"Skipping definition due to too many tokens: `{updated_node.name.value}`")
-        return updated_node
-
-    # Insert docstring as first statement in function or class node
-    updated_node = self.insert_docstring(original_node=original_node, updated_node=updated_node, docstring_value=docstring_value)
-    
-    # Return updated node
-    return updated_node
-
-  def leave_ClassDef(
-    self,
-    original_node: libcst.ClassDef,
-    updated_node: libcst.ClassDef,
-  ) -> libcst.ClassDef:
-    return self.leave_FunctionOrClassDef(original_node, updated_node)
-
-
-  def leave_FunctionDef(
-    self,
-    original_node: libcst.FunctionDef,
-    updated_node: libcst.FunctionDef,
-  ) -> libcst.FunctionDef:
-    # Skip if function is an `__init__` function
-    if self._skip_init_functions and updated_node.name.value == "__init__":
-      return updated_node
-
-    return self.leave_FunctionOrClassDef(original_node, updated_node)
+    super().__init__()
 
 
   def extract_node_source_code(
@@ -143,15 +96,13 @@ class DocstringTransformer(libcst.CSTTransformer):
   ) -> str:
       assert isinstance(node, (libcst.FunctionDef | libcst.ClassDef)), "Expected node to be a function or a class definition"
       
-      node_source_code = self._module.code_for_node(node)
-      
-      return node_source_code
+      return self._module.code_for_node(node)
 
 
   def generate_docstring(
     self,
     node: libcst.FunctionDef | libcst.ClassDef,
-  ) -> str:
+  ) -> FunctionDocstringData | ClassDocstringData:
       assert isinstance(node, (libcst.FunctionDef | libcst.ClassDef)), "Expected node to be a function or a class definition"
 
       # Extract node source code
@@ -166,38 +117,53 @@ class DocstringTransformer(libcst.CSTTransformer):
       elif isinstance(node, libcst.ClassDef):
         node_type = "class"
       else:
-        raise Exception(f"Unexpected node type: {node_type}")
+        raise AIDocsEngineError(f"Unexpected node type: {node_type}")
       
       # Generate docstring (i.e. via OpenAI API wrapper function)
-      try:
-        docstring_value = self._generate_docstring_func(node_source_code, node_type)
-      except AIDocsEngineTooManyTokensError as exception:
-        exception.add_note(f"Failed to generate docstring for: `{node.name.value}`")
-        raise exception
+      docstring_value = self._config.generate_docstring_func(
+        language="python",
+        definition=node_source_code,
+        definition_type=node_type,
+        temperature=self._config.temperature,
+      )
 
-      # Postprocess generated docstring
-      docstring_value = postprocess_docstring(docstring_value)
-
-      return docstring_value
+      # Return postprocessed docstring
+      return postprocess_docstring(docstring_value)
 
 
   def insert_docstring(
     self,
     original_node: libcst.FunctionDef | libcst.ClassDef,
     updated_node: libcst.FunctionDef | libcst.ClassDef,
-    docstring_value: str,
-  ) -> libcst.FunctionDef:
+    docstring_data: FunctionDocstringData | ClassDocstringData,
+  ) -> libcst.FunctionDef | libcst.ClassDef:
     assert isinstance(updated_node, (libcst.FunctionDef | libcst.ClassDef)), "Expected node to be a function or a class definition"
-    assert isinstance(docstring_value, str), "Expected docstring_value to be a string"
+    assert isinstance(docstring_data, (FunctionDocstringData | ClassDocstringData)), "Expected docstring_data to be a function or a class docstring data object"
+
+    # Detect the indentation of the function or class definition
+    position_metadata = self.get_metadata(PositionProvider, original_node)
+    start_position = position_metadata.start
+
+    # Build docstring value
+    docstring_value = build_numpy_docstring(
+      data=docstring_data,
+      overall_indent=start_position.column + self._config.indent_size,
+      section_body_indent=self._config.indent_size,
+    )
+
+    # Add quotes around docstring value
+    docstring_value = f"{self._config.quote_style}{docstring_value}{self._config.quote_style}"
 
     # Create docstring node
     docstring_node = libcst.SimpleStatementLine(body=[
-      libcst.Expr(value=libcst.SimpleString(value=f'{self._docstring_quote_style}{docstring_value}{self._docstring_quote_style}')),
+      libcst.Expr(
+        value=libcst.SimpleString(
+          value=docstring_value,
+        )
+      )
     ])
 
     # Determine if function or class definition is a single line
-    position_metadata = self.get_metadata(PositionProvider, original_node)
-    start_position = position_metadata.start
     end_position = position_metadata.end
     is_single_line = start_position.line == end_position.line
 
@@ -216,3 +182,45 @@ class DocstringTransformer(libcst.CSTTransformer):
 
     # Return updated node
     return updated_node.with_changes(body=new_body)
+
+
+  @override
+  def leave_FunctionOrClassDef(
+    self,
+    original_node: libcst.FunctionDef | libcst.ClassDef,
+    updated_node: libcst.FunctionDef | libcst.ClassDef,
+  ) -> libcst.FunctionDef | libcst.ClassDef:
+    # Skip if function or class already has docstring
+    if check_if_node_has_docstring(updated_node):
+      return updated_node
+
+    # Generate docstring value
+    docstring_data = self.generate_docstring(updated_node)
+
+    # Insert docstring as first statement in function or class node
+    updated_node = self.insert_docstring(original_node=original_node, updated_node=updated_node, docstring_data=docstring_data)
+
+    # Return updated node
+    return updated_node
+
+
+  @override
+  def leave_ClassDef(
+    self,
+    original_node: libcst.ClassDef,
+    updated_node: libcst.ClassDef,
+  ) -> libcst.ClassDef:
+    return self.leave_FunctionOrClassDef(original_node, updated_node)
+
+
+  @override
+  def leave_FunctionDef(
+    self,
+    original_node: libcst.FunctionDef,
+    updated_node: libcst.FunctionDef,
+  ) -> libcst.FunctionDef:
+    # Skip if function is an `__init__` function
+    if self._config.skip_init_methods and updated_node.name.value == "__init__":
+      return updated_node
+    
+    return self.leave_FunctionOrClassDef(original_node, updated_node)
