@@ -1,15 +1,8 @@
 from pydantic import BaseModel
 from typing import Any
-import logging
 import time
 
-try:
-  from termcolor import colored as col
-except ImportError:
-  logging.warning("termcolor is not installed, so colored text will not be available.")
-  col = lambda text, *_: text
-finally:
-  col # This is here to prevent an unused import warning
+from ai_docs_engine.logger import logger, col
 
 
 class ConstBaseModel(BaseModel):
@@ -29,7 +22,7 @@ def time_func(func):
 
     func_name = col(f"{func.__name__}", "magenta")
     time_taken = col(f"{time_taken:.2f}", "green")
-    logging.info(f"Time taken to execute {func_name}: {time_taken} seconds")
+    logger.info(f"Time taken to execute {func_name}: {time_taken} seconds")
 
     return func_return_value
 

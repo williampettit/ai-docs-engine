@@ -4,6 +4,7 @@ from setuptools import setup, find_packages
 with open("README.md") as file:
   long_description = file.read()
 
+
 setup(
   # basic info
   name="ai-docs-engine",
@@ -24,7 +25,11 @@ setup(
 
   # requirements
   python_requires=">=3.6",
-  install_requires=[], # TODO: move contents of requirements.txt here
+  install_requires=[
+    "libcst",
+    "openai",
+    "pydantic",
+  ],
 
   # testing
   test_suite="tests",

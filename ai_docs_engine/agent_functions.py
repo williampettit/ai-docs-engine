@@ -1,6 +1,6 @@
 # This file contains the agent functions that are used by the AI Docs Engine.
 
-from .docstring_formatter import ClassDocstringData, FunctionDocstringData
+from ai_docs_engine.docstring_schema import ClassDocstringData, FunctionDocstringData
 
 
 # TODO: Add more agent functions here
