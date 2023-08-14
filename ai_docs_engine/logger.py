@@ -20,7 +20,7 @@ class CustomFormatter(logging.Formatter):
   def format(self, record: logging.LogRecord) -> str:
     LEVEL_COLORS = {
       logging.DEBUG:    "magenta",
-      logging.INFO:     "green",
+      logging.INFO:     "cyan",
       logging.WARNING:  "yellow",
       logging.ERROR:    "red",
       logging.CRITICAL: "red",
@@ -28,7 +28,7 @@ class CustomFormatter(logging.Formatter):
 
     # Colorize log record
     record.funcName = col(record.funcName, "cyan")
-    record.levelname = col(f"{record.levelname:8s}", LEVEL_COLORS.get(record.levelno, "white"))
+    record.levelname = col(f"{record.levelname}", LEVEL_COLORS.get(record.levelno, "white"))
 
     # Return formatted log record
     return super().format(record)
@@ -45,7 +45,7 @@ logger = logging.getLogger("ai_docs_engine")
 
 # Create stream handler and set formatter
 ch = logging.StreamHandler()
-ch.setFormatter(CustomFormatter())
+ch.setFormatter(CustomFormatter(date_color="light_cyan"))
 
 # Add handler to logger
 logger.addHandler(ch)

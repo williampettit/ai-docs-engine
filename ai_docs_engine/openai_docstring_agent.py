@@ -25,7 +25,7 @@ DEFAULT_MODEL = OpenAIModel(name="gpt-3.5-turbo-0613", tok_lim=4_096)
 EXTRA_CONTEXT_MODEL = OpenAIModel(name="gpt-3.5-turbo-16k-0613", tok_lim=16_384)
 
 
-@cache.memoize()
+# @cache.memoize()
 def generate_docstring(
   language: str,
   definition: str,
@@ -86,7 +86,7 @@ def generate_docstring(
   
   # Log API call
   logger.info(
-    f"Using OpenAI API model `{col(model, 'yellow')}` for a {col(language_name, 'green')} {col(definition_type, 'magenta')} ({col(definition[:20], 'cyan')})"
+    f"Querying model `{col(model, 'yellow')}`"
   )
 
   # Generate docstring with OpenAI API

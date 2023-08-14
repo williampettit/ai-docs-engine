@@ -97,9 +97,6 @@ def _generate_docstrings_for_file(
 def generate_docstrings(
   config: AIDocsEngineConfig,
 ) -> Dict[str, str]:
-  # Log start of docstring generation
-  logger.info("Generating docstrings")
-
   # Gather all source file paths to be processed
   source_file_paths = _gather_source_file_paths(
     include_rules=config.include_rules,
@@ -138,7 +135,7 @@ def generate_docstrings(
         logger.error(f"Error while processing a source file. ({exception = })")
 
   # Log end of docstring generation
-  logger.info("Finished generating docstrings")
+  logger.info("Docstring generation complete")
 
   # Return processed source files as a dictionary which maps their original paths to their modified paths
   return processed_source_files
