@@ -3,7 +3,7 @@
 
 ## Features
 - Pre-existing docstrings always take priority and are **never** over-written. 
-- Locally cache all API calls to avoid paying for same call more than once; uses `diskcache` and `SQLite3`. 
+- Locally cache all API calls to avoid paying for same call more than once; uses `diskcache` which is just a local `SQLite3` database that can be queried standalone later on. 
 - LLM agnostic; bring your own model by simply implementing and passing a callable with the required signature. OpenAI API is used by default. 
 
 ## Limitations, Recommendations
