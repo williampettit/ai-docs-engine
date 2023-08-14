@@ -1,7 +1,7 @@
 # ai-docs-engine
 `ai-docs-engine` is an experimental tool which automatically generates and inserts [docstring](https://en.wikipedia.org/wiki/Docstring) comments for entire codebases. 
 
-[Demo Video](https://github.com/williampettit/ai-docs-engine/assets/14142910/6ad0591e-c737-42d7-930c-b2d4461b8048)
+https://github.com/williampettit/ai-docs-engine/assets/14142910/4638bf5b-da24-45d3-a413-93dff0591db1
 
 ## Features
 - Pre-existing docstrings always take priority and are **never** over-written. 
